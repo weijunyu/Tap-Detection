@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Tap Detection</string>
+
+    <string name="start_detecting">Start Detecting Taps!</string>
+</resources>
