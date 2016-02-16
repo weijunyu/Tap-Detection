@@ -12,6 +12,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 
 public class MainActivity extends AppCompatActivity {
@@ -26,8 +27,8 @@ public class MainActivity extends AppCompatActivity {
 //    private double[][] linAccSample = new double[15][3];
 //    private double[][] gyroSample = new double[15][3];
 
-    private LinkedList<double[]> linAccSamples = new LinkedList<>();
-    private LinkedList<double[]> gyroSamples = new LinkedList<>();
+    private LinkedList<double[]> linAccSamples = new LinkedList<>(Arrays.asList(new double[15][3]));
+    private LinkedList<double[]> gyroSamples = new LinkedList<>(Arrays.asList(new double[15][3]));
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,7 +71,8 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         linAccSamples.addLast(new double[] {xValue, yValue, zValue});
                     }
-                    Log.d(LOG_TAG, "The size of the linacc array is " + linAccSamples.size());
+
+                    // Log.d(LOG_TAG, "The size of the linacc array is " + linAccSamples.size());
                 } else if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
                     double xValue = event.values[0];
                     double yValue = event.values[1];
@@ -82,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         gyroSamples.addLast(new double[] {xValue, yValue, zValue});
                     }
-                    Log.d(LOG_TAG, "The size of the gyro array is " + gyroSamples.size());
+                    // Log.d(LOG_TAG, "The size of the gyro array is " + gyroSamples.size());
 
                     // Old array based method
 //                    System.arraycopy(gyroSample, 0, gyroSample, 1, 14);

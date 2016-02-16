@@ -1,86 +1,137 @@
 package com.example.junyu.tapdetection;
 
 import Jama.Matrix;
+
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 public class Features {
-    private DescriptiveStatistics xDescStats, yDescStats, zDescStats;
-    private Matrix sampleMatrix;
+//    private DescriptiveStatistics xLinAccStats, yLinAccStats, zLinAccStats,
+//            xGyroStats, yGyroStats, zGyrostats;
+    private LinkedList<double[]> linAccSample, gyroSample;
+    private Matrix linAccMatrix, gyroMatrix;
 
-    public Features(LinkedList<double[]> sample) {
+    public Features(LinkedList<double[]> linAccSample, LinkedList<double[]> gyroSample) {
         // Use sample values for apache DescriptiveStatistics
-        xDescStats = new DescriptiveStatistics();
-        yDescStats = new DescriptiveStatistics();
-        zDescStats = new DescriptiveStatistics();
-        for (double[] sensorValues : sample) {
-            xDescStats.addValue(sensorValues[0]);
-            yDescStats.addValue(sensorValues[1]);
-            zDescStats.addValue(sensorValues[2]);
-        }
+        this.linAccSample = linAccSample;
+        this.gyroSample = gyroSample;
+
         // Use sample values for the Jama Matrix
-        double[][] sampleArray = new double[sample.size()][];
-        for (int i = 0; i < sample.size(); i++) {
-            sampleArray[i] = sample.get(i);
+        double[][] linAccArray = new double[linAccSample.size()][];
+        for (int i = 0; i < linAccSample.size(); i++) {
+            linAccArray[i] = linAccSample.get(i);
         }
-        sampleMatrix = new Matrix(sampleArray);
+        linAccMatrix = new Matrix(linAccArray);
+
+        double[][] gyroArray = new double[gyroSample.size()][];
+        for (int i = 0; i < gyroSample.size(); i++) {
+            gyroArray[i] = gyroSample.get(i);
+        }
+        gyroMatrix = new Matrix(gyroArray);
     }
 
-    public double[] getMean() {
-        return new double[] { xDescStats.getMean(), yDescStats.getMean(), zDescStats.getMean() };
+    public double[] getMean(LinkedList<double[]> sample) {
+        DescriptiveStatistics xStats = new DescriptiveStatistics();
+        DescriptiveStatistics yStats = new DescriptiveStatistics();
+        DescriptiveStatistics zStats = new DescriptiveStatistics();
+        for (double[] sensorValues : sample) {
+            xStats.addValue(sensorValues[0]);
+            yStats.addValue(sensorValues[1]);
+            zStats.addValue(sensorValues[2]);
+        }
+        return new double[] { xStats.getMean(), yStats.getMean(), zStats.getMean() };
     }
 
-    public double[] getStdDev() {
+    public double[] getStdDev(LinkedList<double[]> sample) {
+        DescriptiveStatistics xStats = new DescriptiveStatistics();
+        DescriptiveStatistics yStats = new DescriptiveStatistics();
+        DescriptiveStatistics zStats = new DescriptiveStatistics();
+        for (double[] sensorValues : sample) {
+            xStats.addValue(sensorValues[0]);
+            yStats.addValue(sensorValues[1]);
+            zStats.addValue(sensorValues[2]);
+        }
         return new double[] {
-                xDescStats.getStandardDeviation(),
-                yDescStats.getStandardDeviation(),
-                zDescStats.getStandardDeviation()
+                xStats.getStandardDeviation(),
+                yStats.getStandardDeviation(),
+                zStats.getStandardDeviation()
         };
     }
 
-    public double[] getSkew() {
+    public double[] getSkewness(LinkedList<double[]> sample) {
+        DescriptiveStatistics xStats = new DescriptiveStatistics();
+        DescriptiveStatistics yStats = new DescriptiveStatistics();
+        DescriptiveStatistics zStats = new DescriptiveStatistics();
+        for (double[] sensorValues : sample) {
+            xStats.addValue(sensorValues[0]);
+            yStats.addValue(sensorValues[1]);
+            zStats.addValue(sensorValues[2]);
+        }
         return new double[] {
-                xDescStats.getSkewness(),
-                yDescStats.getSkewness(),
-                zDescStats.getSkewness()
+                xStats.getSkewness(),
+                yStats.getSkewness(),
+                zStats.getSkewness()
         };
     }
 
-    public double[] getKurtosis() {
+    public double[] getKurtosis(LinkedList<double[]> sample) {
+        DescriptiveStatistics xStats = new DescriptiveStatistics();
+        DescriptiveStatistics yStats = new DescriptiveStatistics();
+        DescriptiveStatistics zStats = new DescriptiveStatistics();
+        for (double[] sensorValues : sample) {
+            xStats.addValue(sensorValues[0]);
+            yStats.addValue(sensorValues[1]);
+            zStats.addValue(sensorValues[2]);
+        }
         return new double[] {
-                xDescStats.getKurtosis(),
-                yDescStats.getKurtosis(),
-                zDescStats.getKurtosis()
+                xStats.getKurtosis(),
+                yStats.getKurtosis(),
+                zStats.getKurtosis()
         };
     }
 
-    public double getL1Norm() {
+    public double getL1Norm(Matrix sampleMatrix) {
         return sampleMatrix.norm1();
     }
 
-    public double getInfNorm() {
+    public double getInfNorm(Matrix sampleMatrix) {
         return sampleMatrix.normInf();
     }
 
-    public double getFroNorm() {
+    public double getFroNorm(Matrix sampleMatrix) {
         return sampleMatrix.normF();
     }
 
-    public double[] getPearsonCoeff(double[][] linAccSample, double[][] gyroSample) {
-        double[] xLinAcc = new double[linAccSample.length];
-        double[] yLinAcc = new double[linAccSample.length];
-        double[] zLinAcc = new double[linAccSample.length];
-        double[] xGyro = new double[gyroSample.length];
-        double[] yGyro = new double[gyroSample.length];
-        double[] zGyro = new double[gyroSample.length];
-
-        return new double[] {
-                new PearsonsCorrelation().correlation(xLinAcc, xGyro),
-                new PearsonsCorrelation().correlation(yLinAcc, yGyro),
-                new PearsonsCorrelation().correlation(zLinAcc, zGyro),
-        };
+    public double[] getPearsonCoeff(LinkedList<double[]> linAccSample, LinkedList<double[]> gyroSample) {
+        // First make a 15 X 6 matrix of lin acc + gyro sensor values
+        double[][] sampleArray = new double[linAccSample.size()][];
+        for (int i = 0; i < linAccSample.size(); i++) {
+            sampleArray[i] = ArrayUtils.addAll(linAccSample.get(i), gyroSample.get(i));
+        }
+        // Now construct the pearson correlation matrix
+        RealMatrix corrMatrix = new PearsonsCorrelation().computeCorrelationMatrix(sampleArray);
+//        PearsonsCorrelation pCorr = new PearsonsCorrelation();
+//        RealMatrix corrMatrix = pCorr.computeCorrelationMatrix(sampleArray);
+        double[][] corrMatrixArray = corrMatrix.getData();
+        List<Double> pCoeffs = new ArrayList<>();
+        for (int i = 0; i < corrMatrixArray.length; i++) {
+            for (int j = 0; j < corrMatrixArray[0].length; j++) {
+                if (j > i) {
+                    if (Double.isNaN(corrMatrixArray[i][j])) {
+                        corrMatrixArray[i][j] = 0;
+                    }
+                    pCoeffs.add(corrMatrixArray[i][j]);
+                }
+            }
+        }
+        return ArrayUtils.toPrimitive(pCoeffs.toArray(new Double[pCoeffs.size()]));
     }
 
     public double getHighestLine(LinkedList<double[]> linAccSample) {
