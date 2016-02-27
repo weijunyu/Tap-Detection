@@ -14,13 +14,13 @@ class SVMScale
     private static final String LOG_TAG = "SVMScale";
     private double lower = -1.0;
     private double upper = 1.0;
-    private double y_lower;
-    private double y_upper;
-    private boolean y_scaling = false;
+//    private double y_lower;
+//    private double y_upper;
+//    private boolean y_scaling = false;
     private double[] feature_max;
     private double[] feature_min;
-    private double y_max = -Double.MAX_VALUE;
-    private double y_min = Double.MAX_VALUE;
+//    private double y_max = -Double.MAX_VALUE;
+//    private double y_min = Double.MAX_VALUE;
     private int max_index;
     private Context context;
 
@@ -92,12 +92,12 @@ class SVMScale
             {
                 fp_restore.readLine();		// pass the '\n' after 'y'
                 StringTokenizer st = new StringTokenizer(fp_restore.readLine());
-                y_lower = Double.parseDouble(st.nextToken());
-                y_upper = Double.parseDouble(st.nextToken());
+//                y_lower = Double.parseDouble(st.nextToken());
+//                y_upper = Double.parseDouble(st.nextToken());
                 st = new StringTokenizer(fp_restore.readLine());
-                y_min = Double.parseDouble(st.nextToken());
-                y_max = Double.parseDouble(st.nextToken());
-                y_scaling = true;
+//                y_min = Double.parseDouble(st.nextToken());
+//                y_max = Double.parseDouble(st.nextToken());
+//                y_scaling = true;
             }
             else
                 fp_restore.reset();

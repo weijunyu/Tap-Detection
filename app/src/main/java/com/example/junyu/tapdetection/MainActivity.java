@@ -29,9 +29,6 @@ public class MainActivity extends AppCompatActivity {
     private SensorManager sensorManager;
     private SensorEventListener sensorListener;
 
-//    private double[][] linAccSample = new double[15][3];
-//    private double[][] gyroSample = new double[15][3];
-
     private LinkedList<double[]> linAccSamples = new LinkedList<>(Arrays.asList(new double[15][3]));
     private LinkedList<double[]> gyroSamples = new LinkedList<>(Arrays.asList(new double[15][3]));
 
