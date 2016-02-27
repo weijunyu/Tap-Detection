@@ -23,9 +23,27 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/start_detecting"
-        android:id="@+id/button"
+        android:id="@+id/start_button"
         android:layout_centerVertical="true"
         android:layout_centerHorizontal="true"
         android:onClick="startDetecting"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:id="@+id/tap_location"
+        android:visibility="gone"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:id="@+id/holding_hand"
+        android:visibility="gone"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/tap_location"/>
 
 </RelativeLayout>
