@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import libsvm.svm;
 import libsvm.svm_model;
@@ -51,8 +52,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView holdingHandIndicator;
 
     // The list containing lin acc and gyro samples
-    private List<LinkedList<double[]>> sensorValuesList = new ArrayList<>(15);
-    private BlockingQueue<ArrayList<LinkedList<double[]>>> sensorValuesQueue;
+    private static ArrayList<LinkedList<double[]>> sensorValuesList = new ArrayList<>(2);
+    private static BlockingQueue<ArrayList<LinkedList<double[]>>> sensorValuesQueue = new LinkedBlockingQueue<>(50);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +69,9 @@ public class MainActivity extends AppCompatActivity {
 
         locationIndicator = (TextView) findViewById(R.id.tap_location);
         holdingHandIndicator = (TextView) findViewById(R.id.holding_hand);
+
+        sensorValuesList.add(new LinkedList<> (Arrays.asList(new double[] {0,0,0})));
+        sensorValuesList.add(new LinkedList<> (Arrays.asList(new double[] {0,0,0})));
     }
 
     @Override
@@ -127,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
         // Initialise sensors
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         Sensor linearAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        final Sensor gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        Sensor gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 
         sensorListener = new SensorEventListener() {
             @Override
@@ -144,8 +148,7 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         linAccSamples.addLast(new double[] {xValue, yValue, zValue});
                     }
-                    List<LinkedList<double[]>> valuesList = new ArrayList<>();
-
+                    sensorValuesList.set(0, linAccSamples);
                     // Log.d(LOG_TAG, "The size of the linacc array is " + linAccSamples.size());
                 } else if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
                     double xValue = event.values[0];
@@ -158,53 +161,8 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         gyroSamples.addLast(new double[] {xValue, yValue, zValue});
                     }
+                    sensorValuesList.set(1, gyroSamples);
                     // Log.d(LOG_TAG, "The size of the gyro array is " + gyroSamples.size());
-                }
-                // First generate features based on last 300ms of sensor data
-                if (Arrays.equals(gyroSamples.getFirst(), new double[] {0.0,0.0,0.0})) return;
-
-                Features features = new Features(linAccSamples, gyroSamples);
-                String tapOccurrenceFeatures = features.getTapOccurrenceFeatures();
-                String holdingHandFeatures = features.getHoldingHandFeatures();
-                String lHandLocFeatures = features.getLHandLocFeatures();
-                String rHandLocFeatures = features.getRHandLocFeatures();
-
-                // Then generate scaled features
-                String tapOccurrenceInput = tapOccurrenceScaler.scale(tapOccurrenceFeatures);
-                String holdingHandInput = holdingHandScaler.scale(holdingHandFeatures);
-                String lHandLocInput = lHandLocScaler.scale(lHandLocFeatures);
-                String rHandLocInput = rHandLocScaler.scale(rHandLocFeatures);
-
-                // Finally get predictive probabilities
-                // [tap, no tap]
-                double[] tapOccurrenceProb = svmPredict.predict(
-                        tapOccurrenceInput, tap_occurrence_model);
-                // [left hand, right hand]
-                double[] holdingHandProb = svmPredict.predict(
-                        holdingHandInput, holding_hand_model);
-                // [left hand locations 1 ... 5]
-                double[] lHandProb = svmPredict.predict(
-                        lHandLocInput, lhand_location_model);
-                // [right hand locations 1 ... 5]
-                double[] rHandProb = svmPredict.predict(
-                        rHandLocInput, rhand_location_model);
-
-                double tapProb = tapOccurrenceProb[0];
-                if (tapProb > 0.5) {
-                    double[] lHandRealProb = new double[5];
-                    for (int i = 0; i < lHandProb.length; i++) {
-                        lHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[0] * lHandProb[i];
-                    }
-
-                    double[] rHandRealProb = new double[5];
-                    for (int i = 0; i < rHandProb.length; i++) {
-                        rHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[1] * rHandProb[i];
-                    }
-
-                    Log.d(LOG_TAG, "tap probability is: " + tapProb);
-
-                    Log.d(LOG_TAG, "left hand probabilities are: " + Arrays.toString(lHandRealProb));
-                    Log.d(LOG_TAG, "right hand probabilites are: " + Arrays.toString(rHandRealProb));
                 }
             }
 
@@ -216,17 +174,104 @@ public class MainActivity extends AppCompatActivity {
         // delay_game is 20ms (50hz), delay_normal is 200ms (5hz), delay_ui is 60ms (16.7hz)
         sensorManager.registerListener(sensorListener, linearAccelerometer, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(sensorListener, gyroscope, SensorManager.SENSOR_DELAY_GAME);
+
+        SampleProducer producer = new SampleProducer();
+        SampleConsumer consumer = new SampleConsumer();
+        new Thread(producer).start();
+        new Thread(consumer).start();
     }
 
-    private int getMostLikelyLocation(double[] locationProb) {
-        double maxProb = 0;
-        int max_index = 0;
-        for (int i = 0; i < locationProb.length; i++) {
-            if (locationProb[i] > maxProb) {
-                maxProb = locationProb[i];
-                max_index = i;
+    class SampleProducer implements Runnable {
+        @Override
+        public void run() {
+            Log.d(LOG_TAG, "SampleProducer running!");
+            try {
+                while (true) {
+                    sensorValuesQueue.put(sensorValuesList);
+                    LinkedList<double[]> linAccList = sensorValuesList.get(0);
+                    Log.d(LOG_TAG, "producing linacclist: " + Arrays.toString(linAccList.get(0)));
+                    Thread.sleep(20);
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
-        return max_index + 1;
     }
+
+    class SampleConsumer implements Runnable {
+        @Override
+        public void run() {
+            Log.d(LOG_TAG, "SampleConsumer running!");
+            try {
+                while (true) {
+                    ArrayList<LinkedList<double[]>> sampleValues = sensorValuesQueue.take();
+                    LinkedList<double[]> linAccSamples = sampleValues.get(0);
+                    LinkedList<double[]> gyroSamples = sampleValues.get(1);
+
+                    // First generate features based on last 300ms of sensor data
+                    if (Arrays.equals(gyroSamples.getFirst(), new double[]{0.0, 0.0, 0.0})) continue;
+                    Log.d(LOG_TAG, "consuming linaccsamples: " + Arrays.toString(linAccSamples.get(0)));
+
+                    Features features = new Features(linAccSamples, gyroSamples);
+                    String tapOccurrenceFeatures = features.getTapOccurrenceFeatures();
+                    String holdingHandFeatures = features.getHoldingHandFeatures();
+                    String lHandLocFeatures = features.getLHandLocFeatures();
+                    String rHandLocFeatures = features.getRHandLocFeatures();
+
+                    // Then generate scaled features
+                    String tapOccurrenceInput = tapOccurrenceScaler.scale(tapOccurrenceFeatures);
+                    String holdingHandInput = holdingHandScaler.scale(holdingHandFeatures);
+                    String lHandLocInput = lHandLocScaler.scale(lHandLocFeatures);
+                    String rHandLocInput = rHandLocScaler.scale(rHandLocFeatures);
+
+                    // Finally get predictive probabilities
+                    // [tap, no tap]
+                    double[] tapOccurrenceProb = svmPredict.predict(
+                            tapOccurrenceInput, tap_occurrence_model);
+                    // [left hand, right hand]
+                    double[] holdingHandProb = svmPredict.predict(
+                            holdingHandInput, holding_hand_model);
+                    // [left hand locations 1 ... 5]
+                    double[] lHandProb = svmPredict.predict(
+                            lHandLocInput, lhand_location_model);
+                    // [right hand locations 1 ... 5]
+                    double[] rHandProb = svmPredict.predict(
+                            rHandLocInput, rhand_location_model);
+
+                    double tapProb = tapOccurrenceProb[0];
+                    if (tapProb > 0.909) {
+                        double[] lHandRealProb = new double[5];
+                        for (int i = 0; i < lHandProb.length; i++) {
+                            lHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[0] * lHandProb[i];
+                        }
+
+                        double[] rHandRealProb = new double[5];
+                        for (int i = 0; i < rHandProb.length; i++) {
+                            rHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[1] * rHandProb[i];
+                        }
+
+                        Log.d(LOG_TAG, "tap probability is: " + tapProb);
+
+                        Log.d(LOG_TAG, "left hand probabilities are: " + Arrays.toString(lHandRealProb));
+                        Log.d(LOG_TAG, "right hand probabilites are: " + Arrays.toString(rHandRealProb));
+                    }
+                    Thread.sleep(20);
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+//    private int getMostLikelyLocation(double[] locationProb) {
+//        double maxProb = 0;
+//        int max_index = 0;
+//        for (int i = 0; i < locationProb.length; i++) {
+//            if (locationProb[i] > maxProb) {
+//                maxProb = locationProb[i];
+//                max_index = i;
+//            }
+//        }
+//        return max_index + 1;
+//    }
 }
