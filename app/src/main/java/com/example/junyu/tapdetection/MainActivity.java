@@ -17,8 +17,11 @@ import android.widget.TextView;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 import libsvm.svm;
 import libsvm.svm_model;
@@ -47,6 +50,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView locationIndicator;
     private TextView holdingHandIndicator;
 
+    // The list containing lin acc and gyro samples
+    private List<LinkedList<double[]>> sensorValuesList = new ArrayList<>(15);
+    private BlockingQueue<ArrayList<LinkedList<double[]>>> sensorValuesQueue;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
 
         loadModels();
         loadScalers();
+
         svmPredict = new SVMPredict();
 
         locationIndicator = (TextView) findViewById(R.id.tap_location);
@@ -136,6 +144,8 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         linAccSamples.addLast(new double[] {xValue, yValue, zValue});
                     }
+                    List<LinkedList<double[]>> valuesList = new ArrayList<>();
+
                     // Log.d(LOG_TAG, "The size of the linacc array is " + linAccSamples.size());
                 } else if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
                     double xValue = event.values[0];
