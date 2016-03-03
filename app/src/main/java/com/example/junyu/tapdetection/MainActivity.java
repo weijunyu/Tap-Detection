@@ -58,6 +58,8 @@ public class MainActivity extends AppCompatActivity {
     private static ArrayList<LinkedList<double[]>> sensorValuesList = new ArrayList<>(2);
     private static BlockingQueue<ArrayList<LinkedList<double[]>>> sensorValuesQueue = new LinkedBlockingQueue<>(50);
 
+    private boolean detectTaps = true;
+
     private final Lock _mutex = new ReentrantLock(true);
 
     @Override
@@ -75,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         locationIndicator = (TextView) findViewById(R.id.tap_location);
         holdingHandIndicator = (TextView) findViewById(R.id.holding_hand);
 
+        // dummy linkedlists
         sensorValuesList.add(new LinkedList<> (Arrays.asList(new double[] {0,0,0})));
         sensorValuesList.add(new LinkedList<> (Arrays.asList(new double[] {0,0,0})));
     }
@@ -85,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
         if (sensorListener != null) {
             sensorManager.unregisterListener(sensorListener);
         }
+        detectTaps = false;
     }
 
     private void loadModels() {
@@ -137,10 +141,6 @@ public class MainActivity extends AppCompatActivity {
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         Sensor linearAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         Sensor gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-
-//        HandlerThread handlerThread = new HandlerThread("SensorValuesHandlerThread");
-//        handlerThread.start();
-//        Handler handler = new SensorHandler(handlerThread.getLooper());
 
         sensorListener = new SensorEventListener() {
             @Override
@@ -197,9 +197,6 @@ public class MainActivity extends AppCompatActivity {
         sensorManager.registerListener(sensorListener, linearAccelerometer, SensorManager.SENSOR_DELAY_GAME);
         sensorManager.registerListener(sensorListener, gyroscope, SensorManager.SENSOR_DELAY_GAME);
 
-//        sensorManager.registerListener(sensorListener, linearAccelerometer, SensorManager.SENSOR_DELAY_GAME, handler);
-//        sensorManager.registerListener(sensorListener, gyroscope, SensorManager.SENSOR_DELAY_GAME, handler);
-
         SampleProducer producer = new SampleProducer();
         SampleConsumer consumer = new SampleConsumer();
         new Thread(producer).start();
@@ -212,29 +209,45 @@ public class MainActivity extends AppCompatActivity {
             android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
             Log.d(LOG_TAG, "SampleProducer running!");
             try {
-                while (true) {
-                    _mutex.lock();
+                while (detectTaps) {
+                    if (Arrays.equals(gyroSamples.getFirst(), new double[]{0.0, 0.0, 0.0})) {
+                        continue;
+                    }
+
                     // create deep copy of sensorValuesList
-//                    ArrayList<LinkedList<double[]>> sensorValuesCopy = new ArrayList<>(2);
-//                    for (int i = 0; i < sensorValuesList.size(); i++) {
-//                        for (int j = 0; j < sensorValuesList.get(i).size(); j++) {
-//                            double[] values = sensorValuesList.get(i).get(j);
-//                            double[] copy = new double[values.length];
-//                            System.arraycopy(values, 0, copy, 0, values.length);
-//                            sensorValuesCopy.get(i).set(j, copy);
-//                        }
-//                    }
-                    LinkedList<double[]> linAccArray = new LinkedList<>();
-                    sensorValuesQueue.put(sensorValuesList);
-                    LinkedList<double[]> gyroList = sensorValuesList.get(1);
-                    Log.d(LOG_TAG, "producing gyrosamples: " + Arrays.toString(gyroList.getFirst()));
-                    _mutex.unlock();
+                    ArrayList<LinkedList<double[]>> sensorValuesCopy = new ArrayList<>(2);
+                    LinkedList<double[]> linAccCopy = new LinkedList<>();
+                    LinkedList<double[]> gyroCopy = new LinkedList<>();
+
+                    try {
+                        _mutex.lock();
+                        for (double[] array : sensorValuesList.get(0)) {
+                            double[] arrayCopy = new double[array.length];
+                            System.arraycopy(array, 0, arrayCopy, 0, array.length);
+                            linAccCopy.add(arrayCopy);
+                        }
+                        for (double[] array : sensorValuesList.get(1)) {
+                            double[] arrayCopy = new double[array.length];
+                            System.arraycopy(array, 0, arrayCopy, 0, array.length);
+                            gyroCopy.add(arrayCopy);
+                        }
+                    } finally {
+                        _mutex.unlock();
+                    }
+
+                    sensorValuesCopy.add(linAccCopy);
+                    sensorValuesCopy.add(gyroCopy);
+
+                    // add this copy to the blockingqueue
+                    sensorValuesQueue.put(sensorValuesCopy);
+
+//                    LinkedList<double[]> gyroList = sensorValuesList.get(1);
+//                    Log.d(LOG_TAG, "producing gyrosamples: " + Arrays.toString(gyroList.getFirst()));
+
                     Thread.sleep(20);
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
-            } finally {
-                _mutex.unlock();
             }
         }
     }
@@ -245,14 +258,16 @@ public class MainActivity extends AppCompatActivity {
             android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
             Log.d(LOG_TAG, "SampleConsumer running!");
             try {
-                while (true) {
+                while (detectTaps) {
                     ArrayList<LinkedList<double[]>> sampleValues = sensorValuesQueue.take();
                     LinkedList<double[]> linAccSamples = sampleValues.get(0);
                     LinkedList<double[]> gyroSamples = sampleValues.get(1);
 
                     // First generate features based on last 300ms of sensor data
-                    if (Arrays.equals(gyroSamples.getFirst(), new double[]{0.0, 0.0, 0.0})) continue;
-                    Log.d(LOG_TAG, "consuming gyrosamples: " + Arrays.toString(gyroSamples.getFirst()));
+                    if (Arrays.equals(gyroSamples.getFirst(), new double[]{0.0, 0.0, 0.0})) {
+                        continue;
+                    }
+//                    Log.d(LOG_TAG, "consuming gyrosamples: " + Arrays.toString(gyroSamples.getFirst()));
 
                     Features features = new Features(linAccSamples, gyroSamples);
                     String tapOccurrenceFeatures = features.getTapOccurrenceFeatures();
@@ -304,27 +319,4 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-
-    private class SensorHandler extends Handler {
-        public SensorHandler(Looper looper) {
-            super(looper);
-        }
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            Log.d(LOG_TAG, "Message: " + msg.toString());
-        }
-    }
-
-//    private int getMostLikelyLocation(double[] locationProb) {
-//        double maxProb = 0;
-//        int max_index = 0;
-//        for (int i = 0; i < locationProb.length; i++) {
-//            if (locationProb[i] > maxProb) {
-//                maxProb = locationProb[i];
-//                max_index = i;
-//            }
-//        }
-//        return max_index + 1;
-//    }
 }

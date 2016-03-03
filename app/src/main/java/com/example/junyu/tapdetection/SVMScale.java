@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.StringTokenizer;
 
-class SVMScale
+public class SVMScale
 {
     private static final String LOG_TAG = "SVMScale";
     private double lower = -1.0;
