@@ -15,17 +15,16 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import libsvm.svm;
 import libsvm.svm_model;
@@ -51,16 +50,13 @@ public class MainActivity extends AppCompatActivity {
     private svm_model lhand_location_model;
     private svm_model rhand_location_model;
 
-    private TextView locationIndicator;
-    private TextView holdingHandIndicator;
-
     // The list containing lin acc and gyro samples
     private static ArrayList<LinkedList<double[]>> sensorValuesList = new ArrayList<>(2);
     private static BlockingQueue<ArrayList<LinkedList<double[]>>> sensorValuesQueue = new LinkedBlockingQueue<>(50);
 
     private boolean detectTaps = true;
 
-    private final Lock _mutex = new ReentrantLock(true);
+    private Object lock = new Object();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,16 +64,17 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar appBar = (Toolbar) findViewById(R.id.app_bar);
         setSupportActionBar(appBar);
+    }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
         loadModels();
         loadScalers();
 
         svmPredict = new SVMPredict();
 
-        locationIndicator = (TextView) findViewById(R.id.tap_location);
-        holdingHandIndicator = (TextView) findViewById(R.id.holding_hand);
-
-        // dummy linkedlists
+        // dummy linkedlists so that the set function can be called
         sensorValuesList.add(new LinkedList<> (Arrays.asList(new double[] {0,0,0})));
         sensorValuesList.add(new LinkedList<> (Arrays.asList(new double[] {0,0,0})));
     }
@@ -130,9 +127,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void startDetecting(View view) {
         Button startButton = (Button) findViewById(R.id.start_button);
-        startButton.setVisibility(View.GONE);
-        locationIndicator.setVisibility(View.VISIBLE);
-        holdingHandIndicator.setVisibility(View.VISIBLE);
+        if (startButton != null) {
+            startButton.setVisibility(View.GONE);
+        }
         startListening();
     }
 
@@ -157,13 +154,13 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         linAccSamples.addLast(new double[] {xValue, yValue, zValue});
                     }
-
-                    _mutex.lock();
-                    try {
-                        sensorValuesList.set(0, linAccSamples);
-                    } finally {
-                        _mutex.unlock();
+                    // make a deep copy of linAccSamples and add it to sensorValuesList
+                    LinkedList<double[]> linAccSamplesCopy = new LinkedList<double[]>();
+                    for (double[] reading : linAccSamples) {
+                        linAccSamplesCopy.add(makeArrayCopy(reading));
                     }
+
+                    sensorValuesList.set(0, linAccSamplesCopy);
 
 //                     Log.d(LOG_TAG, "The size of the linacc array is " + linAccSamples.size());
                 } else if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
@@ -178,12 +175,13 @@ public class MainActivity extends AppCompatActivity {
                         gyroSamples.addLast(new double[] {xValue, yValue, zValue});
                     }
 
-                    _mutex.lock();
-                    try {
-                        sensorValuesList.set(1, gyroSamples);
-                    } finally {
-                        _mutex.unlock();
+                    LinkedList<double[]> gyroSamplesCopy = new LinkedList<double[]>();
+                    for (double[] reading : gyroSamples) {
+                        gyroSamplesCopy.add(makeArrayCopy(reading));
                     }
+
+                    sensorValuesList.set(1, gyroSamplesCopy);
+
 //                     Log.d(LOG_TAG, "The size of the gyro array is " + gyroSamples.size());
                 }
             }
@@ -210,39 +208,13 @@ public class MainActivity extends AppCompatActivity {
             Log.d(LOG_TAG, "SampleProducer running!");
             try {
                 while (detectTaps) {
+                    // the linear accelerometer always starts ahead of the gyroscope, so need to
+                    // make sure that the gyroscope isn't still outputting 0s
                     if (Arrays.equals(gyroSamples.getFirst(), new double[]{0.0, 0.0, 0.0})) {
                         continue;
                     }
 
-                    // create deep copy of sensorValuesList
-                    ArrayList<LinkedList<double[]>> sensorValuesCopy = new ArrayList<>(2);
-                    LinkedList<double[]> linAccCopy = new LinkedList<>();
-                    LinkedList<double[]> gyroCopy = new LinkedList<>();
-
-                    try {
-                        _mutex.lock();
-                        for (double[] array : sensorValuesList.get(0)) {
-                            double[] arrayCopy = new double[array.length];
-                            System.arraycopy(array, 0, arrayCopy, 0, array.length);
-                            linAccCopy.add(arrayCopy);
-                        }
-                        for (double[] array : sensorValuesList.get(1)) {
-                            double[] arrayCopy = new double[array.length];
-                            System.arraycopy(array, 0, arrayCopy, 0, array.length);
-                            gyroCopy.add(arrayCopy);
-                        }
-                    } finally {
-                        _mutex.unlock();
-                    }
-
-                    sensorValuesCopy.add(linAccCopy);
-                    sensorValuesCopy.add(gyroCopy);
-
-                    // add this copy to the blockingqueue
-                    sensorValuesQueue.put(sensorValuesCopy);
-
-//                    LinkedList<double[]> gyroList = sensorValuesList.get(1);
-//                    Log.d(LOG_TAG, "producing gyrosamples: " + Arrays.toString(gyroList.getFirst()));
+                    sensorValuesQueue.put(sensorValuesList);
 
                     Thread.sleep(20);
                 }
@@ -259,6 +231,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(LOG_TAG, "SampleConsumer running!");
             try {
                 while (detectTaps) {
+//                    Log.d(LOG_TAG, "SampleConsumer loop");
                     ArrayList<LinkedList<double[]>> sampleValues = sensorValuesQueue.take();
                     LinkedList<double[]> linAccSamples = sampleValues.get(0);
                     LinkedList<double[]> gyroSamples = sampleValues.get(1);
@@ -295,10 +268,13 @@ public class MainActivity extends AppCompatActivity {
                     double[] rHandProb = svmPredict.predict(
                             rHandLocInput, rhand_location_model);
 
+                    // if tap occurs, calculate location
+                    // p(location|tap) = P(location|hand)P(hand|tap)
                     double tapProb = tapOccurrenceProb[0];
-                    if (tapProb > 0.909) {
+                    if (tapProb > 0.9) {
                         double[] lHandRealProb = new double[5];
                         for (int i = 0; i < lHandProb.length; i++) {
+                            // probability of location i = p(tap) * p(hand|tap) * p(loc|hand)
                             lHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[0] * lHandProb[i];
                         }
 
@@ -307,10 +283,14 @@ public class MainActivity extends AppCompatActivity {
                             rHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[1] * rHandProb[i];
                         }
 
-                        Log.d(LOG_TAG, "tap probability is: " + tapProb);
+                        double[] combinedProb = ArrayUtils.addAll(lHandRealProb, rHandRealProb);
 
-                        Log.d(LOG_TAG, "left hand probabilities are: " + Arrays.toString(lHandRealProb));
-                        Log.d(LOG_TAG, "right hand probabilites are: " + Arrays.toString(rHandRealProb));
+                        displayPrediction(combinedProb);
+//                        Log.d(LOG_TAG, "tap probability is: " + tapProb);
+//
+//                        Log.d(LOG_TAG, "left hand probabilities are: " + Arrays.toString(lHandRealProb));
+//                        Log.d(LOG_TAG, "right hand probabilites are: " + Arrays.toString(rHandRealProb));
+
                     }
                     Thread.sleep(20);
                 }
@@ -318,5 +298,79 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+    }
+
+    private double[] makeArrayCopy(double[] inputArray) {
+        double[] copiedArray = new double[inputArray.length];
+        System.arraycopy(inputArray, 0, copiedArray, 0, inputArray.length);
+        return copiedArray;
+    }
+
+    private void displayPrediction(double[] probArray) {
+        final double[] combinedProb = probArray;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                double maxProb = 0;
+                int maxIndex = 0;
+                String hand = "";
+                String location = "";
+                for (int i = 0; i < combinedProb.length; i++) {
+                    if (combinedProb[i] > maxProb) {
+                        maxProb = combinedProb[i];
+                        maxIndex = i;
+                    }
+                }
+                // now we have highest location prob and its index
+                // index 0-4 correspond to left hand
+                if (maxIndex < 5) {
+                    hand = "Left hand";
+                } else {
+                    // index 5-9 corresponds to right hand
+                    hand = "Right hand";
+                }
+
+                switch (maxIndex) {
+                    case 0:
+                        location = "Top left";
+                        break;
+                    case 1:
+                        location = "Top";
+                        break;
+                    case 2:
+                        location = "Top right";
+                        break;
+                    case 3:
+                        location = "Right";
+                        break;
+                    case 4:
+                        location = "Bottom right";
+                        break;
+                    case 5:
+                        location = "Top right";
+                        break;
+                    case 6:
+                        location = "Top";
+                        break;
+                    case 7:
+                        location = "Top left";
+                        break;
+                    case 8:
+                        location = "Left";
+                        break;
+                    case 9:
+                        location = "Bottom left";
+                        break;
+                }
+                TextView locationIndicator = (TextView) findViewById(R.id.tap_location);
+                TextView holdingHandIndicator = (TextView) findViewById(R.id.holding_hand);
+                if (locationIndicator != null && holdingHandIndicator != null) {
+                    locationIndicator.setVisibility(View.VISIBLE);
+                    holdingHandIndicator.setVisibility(View.VISIBLE);
+                    locationIndicator.setText(location);
+                    holdingHandIndicator.setText(hand);
+                }
+            }
+        });
     }
 }
