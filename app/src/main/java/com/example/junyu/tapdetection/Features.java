@@ -106,12 +106,12 @@ public class Features {
 
     private double[] getPearsonCoeff(LinkedList<double[]> linAccSample, LinkedList<double[]> gyroSample) {
         // Get each list of sensor values as an array
-        double[] xLinAccValues = new double[15],
-                 yLinAccValues = new double[15],
-                 zLinAccValues = new double[15],
-                 xGyroValues = new double[15],
-                 yGyroValues = new double[15],
-                 zGyroValues = new double[15];
+        double[] xLinAccValues = new double[linAccSample.size()],
+                 yLinAccValues = new double[linAccSample.size()],
+                 zLinAccValues = new double[linAccSample.size()],
+                 xGyroValues = new double[linAccSample.size()],
+                 yGyroValues = new double[linAccSample.size()],
+                 zGyroValues = new double[linAccSample.size()];
         for (int i = 0; i < linAccSample.size(); i++) {
             xLinAccValues[i] = linAccSample.get(i)[0];
             yLinAccValues[i] = linAccSample.get(i)[1];
