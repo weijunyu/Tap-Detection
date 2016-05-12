@@ -156,23 +156,6 @@ public class Features {
         return Math.atan2(yMax, xMax);
     }
 
-    private double[] merge(double[]... arrays) {
-        // get length of merged array
-        int count = 0;
-        for (double[] array : arrays) {
-            count += array.length;
-        }
-        // Create new array and copy all array contents
-        double[] mergedArray = new double[count];
-        int start = 0;
-        for (double[] array: arrays)
-        {
-            System.arraycopy(array, 0, mergedArray, start, array.length);
-            start += array.length;
-        }
-        return mergedArray;
-    }
-
     public String getTapOccurrenceFeatures() {
 //        Standard features, lin acc before gyro:
 //        1. means
@@ -395,4 +378,21 @@ public class Features {
             featureString.append(' ');
         }
         return featureString.toString();        }
+
+    private double[] merge(double[]... arrays) {
+        // get length of merged array
+        int count = 0;
+        for (double[] array : arrays) {
+            count += array.length;
+        }
+        // Create new array and copy all array contents
+        double[] mergedArray = new double[count];
+        int start = 0;
+        for (double[] array: arrays)
+        {
+            System.arraycopy(array, 0, mergedArray, start, array.length);
+            start += array.length;
+        }
+        return mergedArray;
+    }
 }

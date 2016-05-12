@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private static ArrayList<LinkedList<double[]>> sensorValuesList = new ArrayList<>(2);
     private static BlockingQueue<ArrayList<LinkedList<double[]>>> sensorValuesQueue = new LinkedBlockingQueue<>(50);
 
-    private boolean detectTaps = true;
+    private boolean detectTaps = false;
 
     private Object lock = new Object();
 
@@ -80,12 +80,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (detectTaps) {
+            startListening();
+        }
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         if (sensorListener != null) {
             sensorManager.unregisterListener(sensorListener);
         }
-        detectTaps = false;
+        setDetectTaps(false);
     }
 
     private void loadModels() {
@@ -126,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startDetecting(View view) {
+        setDetectTaps(true);
         Button startButton = (Button) findViewById(R.id.start_button);
         if (startButton != null) {
             startButton.setVisibility(View.GONE);
@@ -134,6 +143,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     protected void startListening() {
+
         // Initialise sensors
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         Sensor linearAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
@@ -300,6 +310,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //////////////////////////////////////Helper functions//////////////////////////////////////////
+
     private double[] makeArrayCopy(double[] inputArray) {
         double[] copiedArray = new double[inputArray.length];
         System.arraycopy(inputArray, 0, copiedArray, 0, inputArray.length);
@@ -372,5 +384,9 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private void setDetectTaps(boolean detectTaps) {
+        this.detectTaps = detectTaps;
     }
 }
