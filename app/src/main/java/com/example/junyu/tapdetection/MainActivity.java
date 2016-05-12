@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -115,9 +116,9 @@ public class MainActivity extends AppCompatActivity {
                     new BufferedReader(
                             new InputStreamReader(
                                     assetManager.open("location_rhand.scaled.model"))));
-            Log.d(LOG_TAG, "models loaded.");
+            Log.d(LOG_TAG, "Models loaded.");
         } catch (IOException e) {
-            Log.e(LOG_TAG, "models failed to load.");
+            Log.e(LOG_TAG, "Models failed to load.");
             e.printStackTrace();
         }
     }
@@ -128,7 +129,9 @@ public class MainActivity extends AppCompatActivity {
             holdingHandScaler = new SVMScale(this, "range_hand_5p");
             lHandLocScaler = new SVMScale(this, "range_location_lhand");
             rHandLocScaler = new SVMScale(this, "range_location_rhand");
+            Log.d(LOG_TAG, "Scalers loaded.");
         }catch (IOException e) {
+            Log.e(LOG_TAG, "Scalers failed to load");
             e.printStackTrace();
         }
     }
@@ -281,22 +284,49 @@ public class MainActivity extends AppCompatActivity {
                     // if tap occurs, calculate location
                     // p(location|tap) = P(location|hand)P(hand|tap)
                     double tapProb = tapOccurrenceProb[0];
-                    if (tapProb > 0.9) {
-                        double[] lHandRealProb = new double[5];
-                        for (int i = 0; i < lHandProb.length; i++) {
-                            // probability of location i = p(tap) * p(hand|tap) * p(loc|hand)
-                            lHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[0] * lHandProb[i];
+                    if (tapProb > 0.95) {
+                        if (holdingHandProb[0] > holdingHandProb[1]) {
+                            // Left hand more likely
+                            // Need to find index of max probability and its value
+                            int maxIndex = 0;
+                            double maxProb = 0.0;
+                            for (int i=0; i < lHandProb.length; i++) {
+                                if (lHandProb[i] > maxProb) {
+                                    maxProb = lHandProb[i];
+                                    maxIndex = i;
+                                }
+                            }
+                            Log.d(LOG_TAG, "left hand; location is " + (maxIndex + 1) + " with probability " + maxProb);
+                        } else {
+                            int maxIndex = 0;
+                            double maxProb = 0.0;
+                            for (int i=0; i < rHandProb.length; i++) {
+                                if (rHandProb[i] > maxProb) {
+                                    maxProb = rHandProb[i];
+                                    maxIndex = i;
+                                }
+                            }
+                            Log.d(LOG_TAG, "right hand; location is " + (maxIndex + 1) + " with probability " + maxProb);
                         }
 
-                        double[] rHandRealProb = new double[5];
-                        for (int i = 0; i < rHandProb.length; i++) {
-                            rHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[1] * rHandProb[i];
-                        }
-
-                        double[] combinedProb = ArrayUtils.addAll(lHandRealProb, rHandRealProb);
-
-                        displayPrediction(combinedProb);
+//                        double[] lHandRealProb = new double[5];
+//                        for (int i = 0; i < lHandProb.length; i++) {
+//                            // probability of location i = p(tap) * p(hand|tap) * p(loc|hand)
+//                            lHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[0] * lHandProb[i];
+//                        }
+//
+//                        double[] rHandRealProb = new double[5];
+//                        for (int i = 0; i < rHandProb.length; i++) {
+//                            rHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[1] * rHandProb[i];
+//                        }
+//
+//                        double[] combinedProb = ArrayUtils.addAll(lHandRealProb, rHandRealProb);
+//
+////                        displayPrediction(combinedProb);
 //                        Log.d(LOG_TAG, "tap probability is: " + tapProb);
+//
+//                        Double[] lHandProbObj = ArrayUtils.toObject(lHandRealProb);
+//                        ArrayList<Double> lhandproblist = new ArrayList<Double>(Arrays.asList(lHandRealProb));
 //
 //                        Log.d(LOG_TAG, "left hand probabilities are: " + Arrays.toString(lHandRealProb));
 //                        Log.d(LOG_TAG, "right hand probabilites are: " + Arrays.toString(rHandRealProb));

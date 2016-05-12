@@ -174,10 +174,10 @@ public class Features {
         double[] linAccStdDevs = getStdDev(linAccSample);
         double[] linAccSkewness = getSkewness(linAccSample);
         double[] linAccKurtosis = getKurtosis(linAccSample);
+
         double linAcc1Norm = getL1Norm(linAccMatrix);
         double linAccInfNorm = getInfNorm(linAccMatrix);
         double linAccFroNorm = getFroNorm(linAccMatrix);
-
         double[] linAccNorms = new double[]{linAcc1Norm, linAccInfNorm, linAccFroNorm};
 
         // 15 gyroscope features
@@ -185,10 +185,10 @@ public class Features {
         double[] gyroStdDevs = getStdDev(gyroSample);
         double[] gyroSkewness = getSkewness(gyroSample);
         double[] gyroKurtosis = getKurtosis(gyroSample);
+
         double gyro1Norm = getL1Norm(gyroMatrix);
         double gyroInfNorm = getInfNorm(gyroMatrix);
         double gyroFroNorm = getFroNorm(gyroMatrix);
-
         double[] gyroNorms = new double[] {gyro1Norm, gyroInfNorm, gyroFroNorm};
 
         // 9 pearson features
@@ -230,10 +230,10 @@ public class Features {
         double[] linAccStdDevs = getStdDev(linAccSample);
         double[] linAccSkewness = getSkewness(linAccSample);
         double[] linAccKurtosis = getKurtosis(linAccSample);
+
         double linAcc1Norm = getL1Norm(linAccMatrix);
         double linAccInfNorm = getInfNorm(linAccMatrix);
         double linAccFroNorm = getFroNorm(linAccMatrix);
-
         double[] linAccNorms = new double[]{linAcc1Norm, linAccInfNorm, linAccFroNorm};
 
         // 15 gyroscope features
@@ -241,10 +241,10 @@ public class Features {
         double[] gyroStdDevs = getStdDev(gyroSample);
         double[] gyroSkewness = getSkewness(gyroSample);
         double[] gyroKurtosis = getKurtosis(gyroSample);
+
         double gyro1Norm = getL1Norm(gyroMatrix);
         double gyroInfNorm = getInfNorm(gyroMatrix);
         double gyroFroNorm = getFroNorm(gyroMatrix);
-
         double[] gyroNorms = new double[] {gyro1Norm, gyroInfNorm, gyroFroNorm};
 
         // 9 pearson features
