@@ -46,4 +46,13 @@
         android:layout_centerHorizontal="true"
         android:layout_below="@id/tap_location"/>
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:id="@+id/probability"
+        android:visibility="gone"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/holding_hand"/>
+
 </RelativeLayout>

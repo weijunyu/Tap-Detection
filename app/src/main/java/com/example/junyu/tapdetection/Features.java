@@ -104,6 +104,61 @@ public class Features {
         return sampleMatrix.normF();
     }
 
+    private double[] getRMS(LinkedList<double[]> sample) {
+        DescriptiveStatistics xStats = new DescriptiveStatistics();
+        DescriptiveStatistics yStats = new DescriptiveStatistics();
+        DescriptiveStatistics zStats = new DescriptiveStatistics();
+        for (double[] sensorValues : sample) {
+            xStats.addValue(sensorValues[0]);
+            yStats.addValue(sensorValues[1]);
+            zStats.addValue(sensorValues[2]);
+        }
+        return new double[] { xStats.getQuadraticMean(), yStats.getQuadraticMean(), zStats.getQuadraticMean() };
+    }
+
+    private double[] getP2p(LinkedList<double[]> sample) {
+        DescriptiveStatistics xStats = new DescriptiveStatistics();
+        DescriptiveStatistics yStats = new DescriptiveStatistics();
+        DescriptiveStatistics zStats = new DescriptiveStatistics();
+        for (double[] sensorValues : sample) {
+            xStats.addValue(sensorValues[0]);
+            yStats.addValue(sensorValues[1]);
+            zStats.addValue(sensorValues[2]);
+        }
+        double[] minValues = new double[] { xStats.getMin(), yStats.getMin(), zStats.getMin() };
+        double[] maxValues = new double[] { xStats.getMax(), yStats.getMax(), zStats.getMax() };
+
+        return new double[] {
+                Math.abs(minValues[0] - maxValues[0]),
+                Math.abs(minValues[1] - maxValues[1]),
+                Math.abs(minValues[2] - maxValues[2])
+        };
+    }
+
+    private double[] getMin(LinkedList<double[]> sample) {
+        DescriptiveStatistics xStats = new DescriptiveStatistics();
+        DescriptiveStatistics yStats = new DescriptiveStatistics();
+        DescriptiveStatistics zStats = new DescriptiveStatistics();
+        for (double[] sensorValues : sample) {
+            xStats.addValue(sensorValues[0]);
+            yStats.addValue(sensorValues[1]);
+            zStats.addValue(sensorValues[2]);
+        }
+        return new double[] { xStats.getMin(), yStats.getMin(), zStats.getMin() };
+    }
+
+    private double[] getMax(LinkedList<double[]> sample) {
+        DescriptiveStatistics xStats = new DescriptiveStatistics();
+        DescriptiveStatistics yStats = new DescriptiveStatistics();
+        DescriptiveStatistics zStats = new DescriptiveStatistics();
+        for (double[] sensorValues : sample) {
+            xStats.addValue(sensorValues[0]);
+            yStats.addValue(sensorValues[1]);
+            zStats.addValue(sensorValues[2]);
+        }
+        return new double[] { xStats.getMax(), yStats.getMax(), zStats.getMax() };
+    }
+
     private double[] getPearsonCoeff(LinkedList<double[]> linAccSample, LinkedList<double[]> gyroSample) {
         // Get each list of sensor values as an array
         double[] xLinAccValues = new double[linAccSample.size()],

@@ -15,15 +15,12 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import org.apache.commons.lang3.ArrayUtils;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -59,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Object lock = new Object();
 
+    private enum HoldingHand {LEFT_HAND, RIGHT_HAND};
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -76,8 +75,8 @@ public class MainActivity extends AppCompatActivity {
         svmPredict = new SVMPredict();
 
         // dummy linkedlists so that the set function can be called
-        sensorValuesList.add(new LinkedList<> (Arrays.asList(new double[] {0,0,0})));
-        sensorValuesList.add(new LinkedList<> (Arrays.asList(new double[] {0,0,0})));
+        sensorValuesList.add(new LinkedList<>(Arrays.asList(new double[]{0, 0, 0})));
+        sensorValuesList.add(new LinkedList<>(Arrays.asList(new double[]{0, 0, 0})));
     }
 
     @Override
@@ -130,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
             lHandLocScaler = new SVMScale(this, "range_location_lhand");
             rHandLocScaler = new SVMScale(this, "range_location_rhand");
             Log.d(LOG_TAG, "Scalers loaded.");
-        }catch (IOException e) {
+        } catch (IOException e) {
             Log.e(LOG_TAG, "Scalers failed to load");
             e.printStackTrace();
         }
@@ -163,9 +162,9 @@ public class MainActivity extends AppCompatActivity {
                     // Use LinkedList
                     if (linAccSamples.size() >= 15) {
                         linAccSamples.removeFirst();
-                        linAccSamples.addLast(new double[] {xValue, yValue, zValue});
+                        linAccSamples.addLast(new double[]{xValue, yValue, zValue});
                     } else {
-                        linAccSamples.addLast(new double[] {xValue, yValue, zValue});
+                        linAccSamples.addLast(new double[]{xValue, yValue, zValue});
                     }
                     // make a deep copy of linAccSamples and add it to sensorValuesList
                     LinkedList<double[]> linAccSamplesCopy = new LinkedList<double[]>();
@@ -185,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
                         gyroSamples.removeFirst();
                         gyroSamples.addLast(new double[]{xValue, yValue, zValue});
                     } else {
-                        gyroSamples.addLast(new double[] {xValue, yValue, zValue});
+                        gyroSamples.addLast(new double[]{xValue, yValue, zValue});
                     }
 
                     LinkedList<double[]> gyroSamplesCopy = new LinkedList<double[]>();
@@ -285,54 +284,41 @@ public class MainActivity extends AppCompatActivity {
                     // p(location|tap) = P(location|hand)P(hand|tap)
                     double tapProb = tapOccurrenceProb[0];
                     if (tapProb > 0.95) {
-                        if (holdingHandProb[0] > holdingHandProb[1]) {
-                            // Left hand more likely
-                            // Need to find index of max probability and its value
-                            int maxIndex = 0;
-                            double maxProb = 0.0;
-                            for (int i=0; i < lHandProb.length; i++) {
-                                if (lHandProb[i] > maxProb) {
-                                    maxProb = lHandProb[i];
-                                    maxIndex = i;
-                                }
-                            }
-                            Log.d(LOG_TAG, "left hand; location is " + (maxIndex + 1) + " with probability " + maxProb);
-                        } else {
-                            int maxIndex = 0;
-                            double maxProb = 0.0;
-                            for (int i=0; i < rHandProb.length; i++) {
-                                if (rHandProb[i] > maxProb) {
-                                    maxProb = rHandProb[i];
-                                    maxIndex = i;
-                                }
-                            }
-                            Log.d(LOG_TAG, "right hand; location is " + (maxIndex + 1) + " with probability " + maxProb);
+                        double[] lHandRealProb = new double[5];
+                        for (int i = 0; i < lHandProb.length; i++) {
+                            // probability of location i = p(tap) * p(hand|tap) * p(loc|hand)
+                            lHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[0] * lHandProb[i];
                         }
 
-//                        double[] lHandRealProb = new double[5];
-//                        for (int i = 0; i < lHandProb.length; i++) {
-//                            // probability of location i = p(tap) * p(hand|tap) * p(loc|hand)
-//                            lHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[0] * lHandProb[i];
-//                        }
-//
-//                        double[] rHandRealProb = new double[5];
-//                        for (int i = 0; i < rHandProb.length; i++) {
-//                            rHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[1] * rHandProb[i];
-//                        }
-//
-//                        double[] combinedProb = ArrayUtils.addAll(lHandRealProb, rHandRealProb);
-//
-////                        displayPrediction(combinedProb);
-//                        Log.d(LOG_TAG, "tap probability is: " + tapProb);
-//
-//                        Double[] lHandProbObj = ArrayUtils.toObject(lHandRealProb);
-//                        ArrayList<Double> lhandproblist = new ArrayList<Double>(Arrays.asList(lHandRealProb));
-//
-//                        Log.d(LOG_TAG, "left hand probabilities are: " + Arrays.toString(lHandRealProb));
-//                        Log.d(LOG_TAG, "right hand probabilites are: " + Arrays.toString(rHandRealProb));
+                        double[] rHandRealProb = new double[5];
+                        for (int i = 0; i < rHandProb.length; i++) {
+                            rHandRealProb[i] = tapOccurrenceProb[0] * holdingHandProb[1] * rHandProb[i];
+                        }
 
+//                        // For configuration 1
+//                        double[] combinedProb = new double[7];
+//                        combinedProb[0] = lHandRealProb[0] + rHandRealProb[2];
+//                        combinedProb[1] = lHandRealProb[1] + rHandRealProb[1];
+//                        combinedProb[2] = lHandRealProb[2] + rHandRealProb[0];
+//                        combinedProb[3] = rHandRealProb[3];
+//                        combinedProb[4] = lHandRealProb[3];
+//                        combinedProb[5] = rHandRealProb[4];
+//                        combinedProb[6] = lHandRealProb[4];
+
+                        // For configuration 2
+                        double[] combinedProb = new double[6];
+                        combinedProb[0] = lHandRealProb[0] + rHandRealProb[2];
+                        combinedProb[1] = lHandRealProb[1] + rHandRealProb[1];
+                        combinedProb[2] = lHandRealProb[2] + rHandRealProb[0];
+                        combinedProb[3] = rHandRealProb[3];
+                        combinedProb[4] = lHandRealProb[4] + rHandRealProb[4];
+                        combinedProb[5] = lHandRealProb[3];
+
+                        int maxIndex = getMaxIndex(combinedProb);
+
+                        displayPrediction2(maxIndex);
                     }
-                    Thread.sleep(20);
+//                    Thread.sleep(20);
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -348,69 +334,117 @@ public class MainActivity extends AppCompatActivity {
         return copiedArray;
     }
 
-    private void displayPrediction(double[] probArray) {
-        final double[] combinedProb = probArray;
+    private int getMaxIndex(double[] probArray) {
+        double maxProb = 0;
+        int maxIndex = 0;
+        for (int i = 0; i < probArray.length; i++) {
+            if (probArray[i] > maxProb) {
+                maxProb = probArray[i];
+                maxIndex = i;
+            }
+        }
+        return maxIndex;
+    }
+
+    private void displayPrediction1(int maxIndex) {
+        final int mostLikelyIndex = maxIndex;
+        runOnUiThread(new Runnable() {
+            String prediction;
+
+            @Override
+            public void run() {
+                switch (mostLikelyIndex) {
+                    case 0:
+                        prediction = "Top left";
+                        break;
+                    case 1:
+                        prediction = "Top";
+                        break;
+                    case 2:
+                        prediction = "Top right";
+                        break;
+                    case 3:
+                        prediction = "Left";
+                        break;
+                    case 4:
+                        prediction = "Right";
+                        break;
+                    case 5:
+                        prediction = "Bottom left";
+                        break;
+                    case 6:
+                        prediction = "Bottom right";
+                        break;
+                    default:
+                        break;
+                }
+                TextView tapLocation = (TextView) findViewById(R.id.tap_location);
+                if (tapLocation != null) {
+                    tapLocation.setVisibility(View.VISIBLE);
+                    tapLocation.setText(prediction);
+                }
+            }
+        });
+    }
+
+    private void displayPrediction2(int maxIndex) {
+        final int mostLikelyIndex = maxIndex;
+        runOnUiThread(new Runnable() {
+            String prediction;
+            @Override
+            public void run() {
+                switch (mostLikelyIndex) {
+                    case 0:
+                        prediction = "Top left";
+                        break;
+                    case 1:
+                        prediction = "Top";
+                        break;
+                    case 2:
+                        prediction = "Top right";
+                        break;
+                    case 3:
+                        prediction = "Bottom left";
+                        break;
+                    case 4:
+                        prediction = "Bottom";
+                        break;
+                    case 5:
+                        prediction = "Bottom right";
+                        break;
+                    default:
+                        break;
+                }
+                TextView tapLocation = (TextView) findViewById(R.id.tap_location);
+                if (tapLocation != null) {
+                    tapLocation.setVisibility(View.VISIBLE);
+                    tapLocation.setText(prediction);
+                }
+            }
+        });
+    }
+
+    private void displayProb(int maxIndex, double maxProb, HoldingHand hand) {
+        final int index = maxIndex;
+        final double probability = maxProb;
+        final HoldingHand holdingHand = hand;
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                double maxProb = 0;
-                int maxIndex = 0;
-                String hand = "";
-                String location = "";
-                for (int i = 0; i < combinedProb.length; i++) {
-                    if (combinedProb[i] > maxProb) {
-                        maxProb = combinedProb[i];
-                        maxIndex = i;
-                    }
-                }
-                // now we have highest location prob and its index
-                // index 0-4 correspond to left hand
-                if (maxIndex < 5) {
-                    hand = "Left hand";
-                } else {
-                    // index 5-9 corresponds to right hand
-                    hand = "Right hand";
-                }
-
-                switch (maxIndex) {
-                    case 0:
-                        location = "Top left";
-                        break;
-                    case 1:
-                        location = "Top";
-                        break;
-                    case 2:
-                        location = "Top right";
-                        break;
-                    case 3:
-                        location = "Right";
-                        break;
-                    case 4:
-                        location = "Bottom right";
-                        break;
-                    case 5:
-                        location = "Top right";
-                        break;
-                    case 6:
-                        location = "Top";
-                        break;
-                    case 7:
-                        location = "Top left";
-                        break;
-                    case 8:
-                        location = "Left";
-                        break;
-                    case 9:
-                        location = "Bottom left";
-                        break;
-                }
                 TextView locationIndicator = (TextView) findViewById(R.id.tap_location);
                 TextView holdingHandIndicator = (TextView) findViewById(R.id.holding_hand);
-                if (locationIndicator != null && holdingHandIndicator != null) {
+                TextView probIndicator = (TextView) findViewById(R.id.probability);
+                if (locationIndicator != null && holdingHandIndicator != null && probIndicator != null) {
                     locationIndicator.setVisibility(View.VISIBLE);
                     holdingHandIndicator.setVisibility(View.VISIBLE);
-                    locationIndicator.setText(location);
-                    holdingHandIndicator.setText(hand);
+                    probIndicator.setVisibility(View.VISIBLE);
+                    locationIndicator.setText(String.valueOf(index + 1));
+                    if (holdingHand == HoldingHand.LEFT_HAND) {
+                        holdingHandIndicator.setText(R.string.left_hand);
+                    } else {
+                        holdingHandIndicator.setText(R.string.right_hand);
+                    }
+                    probIndicator.setText(String.valueOf(probability));
                 }
             }
         });
